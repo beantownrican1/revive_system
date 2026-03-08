@@ -170,10 +170,30 @@ enterDownedState = function()
     local myVersion = downedVersion
     local ped       = PlayerPedId()
 
-    SetPedCanRagdoll(ped, false)
+    -- Capture position while still ragdolled
+    local coords  = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)
+
     SetPedDropsWeaponsWhenDead(ped, false)
 
-    -- Play writhe anim — ped is dead so anim plays on ragdolled body
+    -- Resurrect in-place so the ped is a live entity.
+    -- TaskPlayAnim does not work reliably on a dead ped, and
+    -- SetPedCanRagdoll has no effect on one either.
+    SetEntityInvincible(ped, true)
+    NetworkResurrectLocalPlayer(coords.x, coords.y, coords.z, heading, true, false)
+
+    local waited = 0
+    repeat
+        Wait(50)
+        waited = waited + 50
+        ped = PlayerPedId()
+    until (not IsEntityDead(ped) and GetEntityHealth(ped) > 0) or waited > 3000
+
+    SetEntityHealth(ped, 200)
+    ClearPedBloodDamage(ped)
+    SetPedCanRagdoll(ped, false)
+
+    -- Now play the writhe anim on the live ped
     loadAnimDict(Config.DownedAnim.dict)
     TaskPlayAnim(ped, Config.DownedAnim.dict, Config.DownedAnim.anim,
         8.0, -1.0, -1, 1, 0, false, false, false)
@@ -210,29 +230,18 @@ function leaveDownedState(playGetUpAnim, toHospital)
     sendNUI('endProgress', {})
     sendNUI('hideHint', {})
 
-    local ped     = PlayerPedId()
-    local coords  = toHospital and vector3(Config.HospitalSpawn.x, Config.HospitalSpawn.y, Config.HospitalSpawn.z)
-                               or GetEntityCoords(ped)
-    local heading = toHospital and Config.HospitalSpawn.heading or GetEntityHeading(ped)
-
-    SetEntityInvincible(ped, true)
-    NetworkResurrectLocalPlayer(coords.x, coords.y, coords.z, heading, true, false)
-
-    local waited = 0
-    repeat
-        Wait(50)
-        waited = waited + 50
-        ped = PlayerPedId()
-    until (not IsEntityDead(ped) and GetEntityHealth(ped) > 0) or waited > 3000
-
+    -- Ped is already alive (resurrected in enterDownedState).
+    -- Just restore state, re-enable ragdoll, and handle location.
+    local ped = PlayerPedId()
+    ClearPedTasks(ped)
     SetEntityHealth(ped, 200)
     ClearPedBloodDamage(ped)
     SetPedCanRagdoll(ped, true)
+    SetEntityInvincible(ped, false)
 
     if toHospital then
-        -- Teleport to hospital, no get-up anim
-        SetEntityCoords(ped, coords.x, coords.y, coords.z, false, false, false, true)
-        SetEntityHeading(ped, heading)
+        SetEntityCoords(ped, Config.HospitalSpawn.x, Config.HospitalSpawn.y, Config.HospitalSpawn.z, false, false, false, true)
+        SetEntityHeading(ped, Config.HospitalSpawn.heading)
         notify("~b~You've been taken to the hospital.")
     elseif playGetUpAnim then
         loadAnimDict(Config.GetUpAnim.dict)
@@ -241,8 +250,6 @@ function leaveDownedState(playGetUpAnim, toHospital)
         Wait(Config.GetUpAnimDuration)
         ClearPedTasks(ped)
     end
-
-    SetEntityInvincible(ped, false)
 
     TriggerServerEvent('revive:playerRevived')
 end
