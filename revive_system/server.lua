@@ -68,7 +68,7 @@ RegisterNetEvent('revive:revivePlayer', function(targetServerId)
 
     if not downedPlayers[target] then return end
 
-    TriggerClientEvent('revive:youAreRevived', target)
+    TriggerClientEvent('revive:youAreRevived', target, false)  -- byStaff = false
     TriggerClientEvent('revive:reviveCancelled', -1, target)  -- stop any in-progress revive anims
     downedPlayers[target] = nil
     Player(target).state:set('isDowned', false, true)
@@ -144,7 +144,7 @@ RegisterCommand('revive', function(src, args)
     downedPlayers[target] = nil
     Player(target).state:set('isDowned', false, true)
 
-    TriggerClientEvent('revive:youAreRevived', target)
+    TriggerClientEvent('revive:youAreRevived', target, true)  -- byStaff = true
     TriggerClientEvent('revive:reviveCancelled', -1, target)
     broadcastDownedList()
 

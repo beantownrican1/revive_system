@@ -120,16 +120,24 @@ CreateThread(function()
     end
 end)
 
--- Anim re-enforcer — only for downed writhe, not for revive CPR
+local function switchToFinishedOffAnim()
+    local ped = PlayerPedId()
+    loadAnimDict(Config.FinishedOffAnim.dict)
+    TaskPlayAnim(ped, Config.FinishedOffAnim.dict, Config.FinishedOffAnim.anim,
+        4.0, -1.0, -1, 1, 0, false, false, false)
+end
+
+-- Anim re-enforcer — keeps the correct anim playing throughout the downed state
 CreateThread(function()
     while true do
         Wait(1000)
         if isDowned and animLoopActive and not isReviving then
-            local ped = PlayerPedId()
-            if not IsEntityPlayingAnim(ped, Config.DownedAnim.dict, Config.DownedAnim.anim, 3) then
-                loadAnimDict(Config.DownedAnim.dict)
-                TaskPlayAnim(ped, Config.DownedAnim.dict, Config.DownedAnim.anim,
-                    8.0, -1.0, -1, 1, 0, false, false, false)
+            local ped      = PlayerPedId()
+            local animDict = isFinishedOff and Config.FinishedOffAnim.dict or Config.DownedAnim.dict
+            local animName = isFinishedOff and Config.FinishedOffAnim.anim or Config.DownedAnim.anim
+            if not IsEntityPlayingAnim(ped, animDict, animName, 3) then
+                loadAnimDict(animDict)
+                TaskPlayAnim(ped, animDict, animName, 8.0, -1.0, -1, 1, 0, false, false, false)
             end
         end
     end
@@ -151,6 +159,7 @@ local function handleDeath()
             selfReviveReady = false
             sendNUI('endProgress', {})
             notify("~r~You've been finished off. Wait for hospital transfer.")
+            switchToFinishedOffAnim()
             TriggerServerEvent('revive:playerFinishedOff')
             startHospitalTimer()
         end
@@ -391,6 +400,7 @@ CreateThread(function()
                 selfReviveReady = false
                 sendNUI('endProgress', {})
                 notify("~r~You've finished yourself off. Wait for hospital transfer.")
+                switchToFinishedOffAnim()
                 TriggerServerEvent('revive:playerFinishedOff')
                 startHospitalTimer()
             end
@@ -535,11 +545,11 @@ end
 --  Server → Client events
 -- ============================================================
 
-RegisterNetEvent('revive:youAreRevived', function()
+RegisterNetEvent('revive:youAreRevived', function(byStaff)
     if isDowned then
-        -- Always revive in-place regardless of finished-off state.
-        -- Hospital transport only happens when the player chooses it themselves.
-        leaveDownedState(true, false)
+        -- Staff revive: instant, no get-up animation
+        -- Player revive: play the get-up animation
+        leaveDownedState(not byStaff, false)
         notify("~g~You were revived!")
     end
     cancelRevive()
@@ -558,6 +568,7 @@ RegisterNetEvent('revive:youAreFinishedOff', function()
         selfReviveReady = false
         sendNUI('endProgress', {})
         notify("~r~You've been finished off. Wait for hospital transfer.")
+        switchToFinishedOffAnim()
         startHospitalTimer()
     end
 end)

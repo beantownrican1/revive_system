@@ -30,10 +30,16 @@ Config.HospitalSpawn = {
     heading = 340.0
 }
 
--- Downed animation dict/name (player lying on ground)
+-- Downed animation dict/name (player lying on ground, writhing)
 Config.DownedAnim = {
     dict = "combat@damage@writhe",
     anim = "writhe_loop"
+}
+
+-- Animation played when a player is finished off (unconscious/passed out)
+Config.FinishedOffAnim = {
+    dict = "anim@amb@drug_field_workers@drugged_ped@",
+    anim = "dead_1"
 }
 
 -- Revive animation performed by the reviver
