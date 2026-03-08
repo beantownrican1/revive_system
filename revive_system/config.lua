@@ -22,11 +22,12 @@ Config.FinishOffKey = 45  -- R key
 Config.ReviveKey = 38     -- E key
 
 -- Hospital spawn location (where finished-off players are sent)
+-- Front door of Pillbox Hill Medical Center, top/street level
 Config.HospitalSpawn = {
-    x = 357.68,
-    y = -1419.86,
-    z = 32.50,
-    heading = 180.0
+    x = 307.18,
+    y = -1432.76,
+    z = 32.49,
+    heading = 340.0
 }
 
 -- Downed animation dict/name (player lying on ground)
@@ -48,8 +49,7 @@ Config.GetUpAnim = {
 }
 
 -- How long the ragdoll plays before downed state locks in (ms)
--- Keep this short — long ragdoll windows allow the ped to clip through geometry
-Config.RagdollDelay = 800
+Config.RagdollDelay = 4000
 
 -- NUI progress bar colors
 Config.BarColor = {r = 255, g = 60, b = 60, a = 200}    -- downed timer
