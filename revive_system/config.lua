@@ -40,9 +40,10 @@ Config.DownedAnim = {
 }
 
 -- Animation played when a player is finished off (unconscious/passed out)
+-- Must be a live-ped animation — dead-ped anims are silently rejected by TaskPlayAnim.
 Config.FinishedOffAnim = {
-    dict = "anim@amb@drug_field_workers@drugged_ped@",
-    anim = "dead_1"
+    dict = "combat@damage@writhe",
+    anim = "writhe_loop",
 }
 
 -- Revive animation performed by the reviver

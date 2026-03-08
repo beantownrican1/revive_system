@@ -318,7 +318,10 @@ CreateThread(function()
                 SetEntityHealth(p, 200)
                 SetPedCanRagdoll(p, false)
                 SetPedRelationshipGroupHash(p, GetHashKey("CIVMALE"))
-                SetEntityInvincible(p, false)
+                -- Keep invincible — they are finished off, nothing should alter their state.
+                -- leaveDownedState clears this when they go to hospital.
+                ClearPedTasks(p)  -- evict any stand-up animation from the resurrection
+                Wait(0)           -- yield so the clear takes effect before the new anim
                 switchToFinishedOffAnim()
                 TriggerServerEvent('revive:playerFinishedOff')
                 startHospitalTimer()
@@ -444,6 +447,8 @@ CreateThread(function()
                 selfReviveReady = false
                 sendNUI('endProgress', {})
                 notify("~r~You've finished yourself off. Wait for hospital transfer.")
+                -- Lock the ped so nothing else can interact with them while waiting for hospital
+                SetEntityInvincible(PlayerPedId(), true)
                 switchToFinishedOffAnim()
                 TriggerServerEvent('revive:playerFinishedOff')
                 startHospitalTimer()
