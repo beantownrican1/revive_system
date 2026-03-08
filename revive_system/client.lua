@@ -39,6 +39,24 @@ local function sendNUI(action, data)
     SendNUIMessage(data)
 end
 
+-- Start a timer that allows the finished-off player to press [E] for hospital
+local function startHospitalTimer()
+    local myVersion = downedVersion
+    sendNUI('startProgress', {
+        label    = "⚰  Critical — awaiting hospital transfer...",
+        duration = Config.SelfReviveTimer * 1000,
+        color    = { r = 180, g = 0, b = 0, a = 220 },
+    })
+    SetTimeout(Config.SelfReviveTimer * 1000, function()
+        if downedVersion ~= myVersion then return end
+        if isDowned and isFinishedOff then
+            sendNUI('endProgress', {})
+            selfReviveReady = true
+            notify("~b~Press [E] to go to the hospital.")
+        end
+    end)
+end
+
 -- ============================================================
 --  Sync downed list from server
 -- ============================================================
@@ -132,13 +150,9 @@ local function handleDeath()
             isFinishedOff   = true
             selfReviveReady = false
             sendNUI('endProgress', {})
-            sendNUI('startProgress', {
-                label    = "⚰  Critical — staff revive only...",
-                duration = Config.SelfReviveTimer * 1000,
-                color    = { r = 180, g = 0, b = 0, a = 220 },
-            })
-            notify("~r~You've been finished off. Staff revive only.")
+            notify("~r~You've been finished off. Wait for hospital transfer.")
             TriggerServerEvent('revive:playerFinishedOff')
+            startHospitalTimer()
         end
         return
     end
@@ -319,12 +333,14 @@ CreateThread(function()
         Wait(1500)  -- refresh hint every 1.5s, NUI auto-hides after 2s
         if isDowned then
             local text
-            if isFinishedOff then
-                text = "~r~Finished off — awaiting staff revive"
+            if isFinishedOff and selfReviveReady then
+                text = "Press ~b~[E]~w~ to go to the hospital"
+            elseif isFinishedOff then
+                text = "~r~Finished off — awaiting hospital transfer..."
             elseif selfReviveReady then
                 text = "Press ~g~[E]~w~ to get up  |  Press ~r~[R]~w~ to finish yourself off"
             else
-                text = "Press ~r~[R]~w~ to finish yourself off ~r~(staff revive only)"
+                text = "Press ~r~[R]~w~ to finish yourself off ~r~(hospital respawn)"
             end
             if text ~= lastHintText then
                 lastHintText = text
@@ -348,25 +364,28 @@ CreateThread(function()
         -- Self-revive or self finish-off while downed
         if isDowned then
 
-            if selfReviveReady and not isFinishedOff and IsControlJustPressed(0, Config.ReviveKey) then
+            if selfReviveReady and IsControlJustPressed(0, Config.ReviveKey) then
                 selfReviveReady = false
-                notify("~w~Getting up...")
-                CreateThread(function()
-                    leaveDownedState(true)
-                end)
+                if isFinishedOff then
+                    notify("~b~Going to hospital...")
+                    CreateThread(function()
+                        leaveDownedState(false, true)
+                    end)
+                else
+                    notify("~w~Getting up...")
+                    CreateThread(function()
+                        leaveDownedState(true, false)
+                    end)
+                end
             end
 
             if not isFinishedOff and IsDisabledControlJustPressed(0, Config.FinishOffKey) then
                 isFinishedOff   = true
                 selfReviveReady = false
                 sendNUI('endProgress', {})
-                sendNUI('startProgress', {
-                    label    = "⚰  Critical — staff revive only...",
-                    duration = Config.SelfReviveTimer * 1000,
-                    color    = { r = 180, g = 0, b = 0, a = 220 },
-                })
-                notify("~r~You've finished yourself off. Staff revive only.")
+                notify("~r~You've finished yourself off. Wait for hospital transfer.")
                 TriggerServerEvent('revive:playerFinishedOff')
+                startHospitalTimer()
             end
         end
 
@@ -534,12 +553,8 @@ RegisterNetEvent('revive:youAreFinishedOff', function()
         isFinishedOff   = true
         selfReviveReady = false
         sendNUI('endProgress', {})
-        sendNUI('startProgress', {
-            label    = "⚰  Critical — staff revive only...",
-            duration = Config.SelfReviveTimer * 1000,
-            color    = { r = 180, g = 0, b = 0, a = 220 },
-        })
-        notify("~r~You've been finished off. Staff revive only.")
+        notify("~r~You've been finished off. Wait for hospital transfer.")
+        startHospitalTimer()
     end
 end)
 

@@ -76,10 +76,10 @@ Config.BannedWeapons = {
     GetHashKey("WEAPON_SPECIALCARBINE_MK2"),
     GetHashKey("WEAPON_STICKYBOMB"),
     GetHashKey("WEAPON_EMPLAUNCHER"),
-    GetHashKey("WEAPON_STUNGUMP"),
+    GetHashKey("WEAPON_STUNGUN"),
     GetHashKey("WEAPON_PRECISIONRIFLE"),
     GetHashKey("WEAPON_RAILGUNXM3"),
-    GetHashKey("WEAPON_PLASMAPISOL"),
+    GetHashKey("WEAPON_PLASMAPISTOL"),
     GetHashKey("WEAPON_PLASMACARBINE"),
     GetHashKey("WEAPON_PLASMAMINIGUN"),
 }
