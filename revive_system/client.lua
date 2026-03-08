@@ -260,9 +260,19 @@ CreateThread(function()
 
         if isDeadNow and wasAlive and not isDowned then
             wasAlive = false
-            -- Wait for ragdoll to play naturally, then enter downed state
+            -- Wait for ragdoll to play naturally, then enter downed state.
+            -- After the delay, check if the ped fell through the map and
+            -- snap them back to ground level if so.
             CreateThread(function()
                 Wait(Config.RagdollDelay)
+                local p = PlayerPedId()
+                if IsEntityDead(p) and not isDowned then
+                    local pos = GetEntityCoords(p)
+                    local found, gz = GetGroundZFor_3dCoord(pos.x, pos.y, pos.z + 10.0, false)
+                    if found and pos.z < gz - 0.3 then
+                        SetEntityCoords(p, pos.x, pos.y, gz + 0.1, false, false, false, false)
+                    end
+                end
                 handleDeath()
             end)
         elseif not isDeadNow and not wasAlive and not isDowned then
