@@ -266,7 +266,7 @@ CreateThread(function()
             CreateThread(function()
                 Wait(Config.RagdollDelay)
                 local p = PlayerPedId()
-                if IsEntityDead(p) and not isDowned then
+                if IsEntityDead(p) and not isDowned and GetInteriorFromEntity(p) == 0 then
                     local pos = GetEntityCoords(p)
                     local found, gz = GetGroundZFor_3dCoord(pos.x, pos.y, pos.z + 10.0, false)
                     if found and pos.z < gz - 0.3 then
