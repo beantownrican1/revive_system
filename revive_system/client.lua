@@ -260,9 +260,18 @@ CreateThread(function()
 
         if isDeadNow and wasAlive and not isDowned then
             wasAlive = false
-            -- Wait for ragdoll to play naturally, then enter downed state
+            -- Wait for ragdoll to play naturally, then enter downed state.
+            -- After a brief initial reaction, freeze position to prevent the ped
+            -- from ragdolling through map geometry (e.g. from zombie punches).
             CreateThread(function()
-                Wait(Config.RagdollDelay)
+                Wait(400)
+                local p = PlayerPedId()
+                if IsEntityDead(p) and not isDowned then
+                    SetPedCanRagdoll(p, false)
+                    FreezeEntityPosition(p, true)
+                    Wait(math.max(0, Config.RagdollDelay - 400))
+                    FreezeEntityPosition(p, false)
+                end
                 handleDeath()
             end)
         elseif not isDeadNow and not wasAlive and not isDowned then
@@ -530,13 +539,10 @@ end
 
 RegisterNetEvent('revive:youAreRevived', function()
     if isDowned then
-        local wasFinishedOff = isFinishedOff
-        leaveDownedState(not wasFinishedOff, wasFinishedOff)
-        if wasFinishedOff then
-            notify("~b~You've been taken to the hospital.")
-        else
-            notify("~g~You were revived!")
-        end
+        -- Always revive in-place regardless of finished-off state.
+        -- Hospital transport only happens when the player chooses it themselves.
+        leaveDownedState(true, false)
+        notify("~g~You were revived!")
     end
     cancelRevive()
 end)
