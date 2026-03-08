@@ -1,7 +1,7 @@
 Config = {}
 
 -- Timer before a downed player can self-revive (seconds)
-Config.SelfReviveTimer = 60
+Config.SelfReviveTimer = 40
 
 -- How long the "get up" animation takes before control is restored (ms)
 Config.GetUpAnimDuration = 4000

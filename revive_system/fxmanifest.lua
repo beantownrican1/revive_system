@@ -1,7 +1,7 @@
 fx_version 'cerulean'
 game 'gta5'
 
-author 'Custom'
+author 'Basiik'
 description 'Advanced Revive System'
 version '1.0.0'
 
