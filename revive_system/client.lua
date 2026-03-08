@@ -260,18 +260,9 @@ CreateThread(function()
 
         if isDeadNow and wasAlive and not isDowned then
             wasAlive = false
-            -- Wait for ragdoll to play naturally, then enter downed state.
-            -- After a brief initial reaction, freeze position to prevent the ped
-            -- from ragdolling through map geometry (e.g. from zombie punches).
+            -- Wait for ragdoll to play naturally, then enter downed state
             CreateThread(function()
-                Wait(400)
-                local p = PlayerPedId()
-                if IsEntityDead(p) and not isDowned then
-                    SetPedCanRagdoll(p, false)
-                    FreezeEntityPosition(p, true)
-                    Wait(math.max(0, Config.RagdollDelay - 400))
-                    FreezeEntityPosition(p, false)
-                end
+                Wait(Config.RagdollDelay)
                 handleDeath()
             end)
         elseif not isDeadNow and not wasAlive and not isDowned then
