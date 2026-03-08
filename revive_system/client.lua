@@ -260,24 +260,9 @@ CreateThread(function()
 
         if isDeadNow and wasAlive and not isDowned then
             wasAlive = false
-            -- Wait for ragdoll to play naturally, then enter downed state.
-            -- Poll during the ragdoll window and snap back to ground immediately
-            -- if the ped clips through map geometry (exterior only — skip interiors).
+            -- Brief pause for the initial death reaction, then lock into writhe anim
             CreateThread(function()
-                local elapsed = 0
-                while elapsed < Config.RagdollDelay do
-                    Wait(100)
-                    elapsed = elapsed + 100
-                    local p = PlayerPedId()
-                    if not IsEntityDead(p) or isDowned then break end
-                    if GetInteriorFromEntity(p) == 0 then
-                        local pos = GetEntityCoords(p)
-                        local found, gz = GetGroundZFor_3dCoord(pos.x, pos.y, pos.z + 10.0, false)
-                        if found and pos.z < gz - 0.3 then
-                            SetEntityCoords(p, pos.x, pos.y, gz + 0.1, false, false, false, false)
-                        end
-                    end
-                end
+                Wait(Config.RagdollDelay)
                 handleDeath()
             end)
         elseif not isDeadNow and not wasAlive and not isDowned then

@@ -48,7 +48,8 @@ Config.GetUpAnim = {
 }
 
 -- How long the ragdoll plays before downed state locks in (ms)
-Config.RagdollDelay = 4000
+-- Keep this short — long ragdoll windows allow the ped to clip through geometry
+Config.RagdollDelay = 800
 
 -- NUI progress bar colors
 Config.BarColor = {r = 255, g = 60, b = 60, a = 200}    -- downed timer
