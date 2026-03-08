@@ -1,8 +1,5 @@
 -- ============================================================
 --  REVIVE SYSTEM - CLIENT
---  Approach: let the ped stay dead naturally. Never fight
---  NetworkResurrectLocalPlayer during the downed window.
---  Only resurrect on actual revive/self-revive.
 -- ============================================================
 
 local isDowned        = false
@@ -12,6 +9,7 @@ local isReviving      = false
 local animLoopActive  = false
 local nearbyDowned    = nil
 local downedVersion   = 0
+local originalRelGroup = nil   -- stored so we can restore on revive
 
 -- Downed list synced from server
 local downedList = {}
@@ -44,10 +42,10 @@ local function startHospitalTimer()
     local myVersion = downedVersion
     sendNUI('startProgress', {
         label    = "⚰  Critical — awaiting hospital transfer...",
-        duration = Config.SelfReviveTimer * 1000,
+        duration = Config.HospitalTimer * 1000,
         color    = { r = 180, g = 0, b = 0, a = 220 },
     })
-    SetTimeout(Config.SelfReviveTimer * 1000, function()
+    SetTimeout(Config.HospitalTimer * 1000, function()
         if downedVersion ~= myVersion then return end
         if isDowned and isFinishedOff then
             sendNUI('endProgress', {})
@@ -202,6 +200,12 @@ enterDownedState = function()
     ClearPedBloodDamage(ped)
     SetPedCanRagdoll(ped, false)
 
+    -- Change relationship group so NPCs (zombies) stop targeting the downed player.
+    -- Restore to original group on revive.
+    originalRelGroup = GetPedRelationshipGroupHash(ped)
+    SetPedRelationshipGroupHash(ped, GetHashKey("CIVMALE"))
+    SetEntityInvincible(ped, false)  -- rely on NPC ignoring, not invincibility
+
     -- Now play the writhe anim on the live ped
     loadAnimDict(Config.DownedAnim.dict)
     TaskPlayAnim(ped, Config.DownedAnim.dict, Config.DownedAnim.anim,
@@ -248,6 +252,16 @@ function leaveDownedState(playGetUpAnim, toHospital)
     SetPedCanRagdoll(ped, true)
     SetEntityInvincible(ped, false)
 
+    -- Restore original relationship group (re-enables NPC targeting)
+    if originalRelGroup then
+        SetPedRelationshipGroupHash(ped, originalRelGroup)
+        originalRelGroup = nil
+    end
+
+    -- Restore full player control — GTA can leave the player in a partial
+    -- death state (blocking menus like Escape / vMenu) without this
+    SetPlayerControl(PlayerId(), true, 0)
+
     if toHospital then
         SetEntityCoords(ped, Config.HospitalSpawn.x, Config.HospitalSpawn.y, Config.HospitalSpawn.z, false, false, false, true)
         SetEntityHeading(ped, Config.HospitalSpawn.heading)
@@ -281,16 +295,46 @@ CreateThread(function()
                 Wait(Config.RagdollDelay)
                 handleDeath()
             end)
+        elseif isDeadNow and wasAlive and isDowned and not isFinishedOff then
+            -- Died again while downed → ragdoll plays, then transition to finished-off
+            wasAlive = false
+            CreateThread(function()
+                Wait(Config.RagdollDelay)
+                if not isDowned or isFinishedOff then return end
+                isFinishedOff   = true
+                selfReviveReady = false
+                sendNUI('endProgress', {})
+                notify("~r~You're critically injured. Wait for hospital transfer.")
+                -- Re-resurrect in-place for the passout animation
+                local p       = PlayerPedId()
+                local coords  = GetEntityCoords(p)
+                local heading = GetEntityHeading(p)
+                SetPedDropsWeaponsWhenDead(p, false)
+                SetEntityInvincible(p, true)
+                NetworkResurrectLocalPlayer(coords.x, coords.y, coords.z, heading, true, false)
+                local w = 0
+                repeat Wait(50); w = w + 50; p = PlayerPedId()
+                until (not IsEntityDead(p) and GetEntityHealth(p) > 0) or w > 3000
+                SetEntityHealth(p, 200)
+                SetPedCanRagdoll(p, false)
+                SetPedRelationshipGroupHash(p, GetHashKey("CIVMALE"))
+                SetEntityInvincible(p, false)
+                switchToFinishedOffAnim()
+                TriggerServerEvent('revive:playerFinishedOff')
+                startHospitalTimer()
+            end)
         elseif not isDeadNow and not wasAlive and not isDowned then
             -- Ped was resurrected (e.g. vMenu ped reload) while not downed — just reset
             wasAlive = true
         elseif not isDeadNow and not wasAlive and isDowned then
-            -- Ped was externally resurrected while downed (vMenu ped model reload)
-            -- Re-apply downed anim immediately to fight it
+            -- Ped resurrected while downed (our own resurrection or vMenu ped reload)
+            -- Re-apply the correct anim for the current state
             wasAlive = true
-            local p = PlayerPedId()
-            loadAnimDict(Config.DownedAnim.dict)
-            TaskPlayAnim(p, Config.DownedAnim.dict, Config.DownedAnim.anim,
+            local p        = PlayerPedId()
+            local animDict = isFinishedOff and Config.FinishedOffAnim.dict or Config.DownedAnim.dict
+            local animName = isFinishedOff and Config.FinishedOffAnim.anim or Config.DownedAnim.anim
+            loadAnimDict(animDict)
+            TaskPlayAnim(p, animDict, animName,
                 8.0, -1.0, -1, 1, 0, false, false, false)
         end
     end
@@ -436,15 +480,9 @@ CreateThread(function()
                 if nearbyDowned.isFinishedOff then
                     DrawText3D(GetEntityCoords(nearbyDowned.ped), "~r~Finished Off — Staff Revive Only")
                 else
-                    DrawText3D(GetEntityCoords(nearbyDowned.ped), "~g~[E] Revive   ~r~[R] Finish Off")
-                    if not isReviving then
-                        if IsControlJustPressed(0, Config.ReviveKey) then
-                            startReviving(nearbyDowned)
-                        end
-                        if IsControlJustPressed(0, Config.FinishOffKey) then
-                            TriggerServerEvent('revive:finishOffPlayer', nearbyDowned.serverId)
-                            notify("~r~Player finished off.")
-                        end
+                    DrawText3D(GetEntityCoords(nearbyDowned.ped), "~g~[E] Revive")
+                    if not isReviving and IsControlJustPressed(0, Config.ReviveKey) then
+                        startReviving(nearbyDowned)
                     end
                 end
             end

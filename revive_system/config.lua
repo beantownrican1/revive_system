@@ -3,6 +3,9 @@ Config = {}
 -- Timer before a downed player can self-revive (seconds)
 Config.SelfReviveTimer = 40
 
+-- Timer before a finished-off player can press E for hospital (seconds)
+Config.HospitalTimer = 20
+
 -- How long the "get up" animation takes before control is restored (ms)
 Config.GetUpAnimDuration = 4000
 
