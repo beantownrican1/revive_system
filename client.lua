@@ -331,12 +331,20 @@ CreateThread(function()
             wasAlive = false
             CreateThread(function()
                 Wait(Config.RagdollDelay)
-                if not isDowned or isFinishedOff then return end
-                isFinishedOff   = true
-                selfReviveReady = false
-                sendNUI('endProgress', {})
-                notify("~r~You're critically injured. Wait for hospital transfer.")
-                -- Re-resurrect in-place for the passout animation
+                if not isDowned then return end
+                -- Track whether the player pressed R during the ragdoll delay.
+                -- If so, isFinishedOff is already true and the R handler already
+                -- sent the server event and started the timer — skip those here.
+                -- But we still MUST resurrect: the R handler ran on a dead ped so
+                -- the anim never played and controls may be locked by GTA's death state.
+                local alreadyFinishedOff = isFinishedOff
+                if not alreadyFinishedOff then
+                    isFinishedOff   = true
+                    selfReviveReady = false
+                    sendNUI('endProgress', {})
+                    notify("~r~You're critically injured. Wait for hospital transfer.")
+                end
+                -- Always re-resurrect in-place so the passout anim can play on a live ped.
                 local p       = PlayerPedId()
                 local coords  = GetEntityCoords(p)
                 local heading = GetEntityHeading(p)
@@ -354,8 +362,10 @@ CreateThread(function()
                 ClearPedTasks(p)  -- evict any stand-up animation from the resurrection
                 Wait(0)           -- yield so the clear takes effect before the new anim
                 switchToFinishedOffAnim()
-                TriggerServerEvent('revive:playerFinishedOff')
-                startHospitalTimer()
+                if not alreadyFinishedOff then
+                    TriggerServerEvent('revive:playerFinishedOff')
+                    startHospitalTimer()
+                end
             end)
         elseif not isDeadNow and not wasAlive and not isDowned then
             -- Ped was resurrected (e.g. vMenu ped reload) while not downed — just reset
@@ -480,9 +490,16 @@ CreateThread(function()
                 notify("~r~You've finished yourself off. Wait for hospital transfer.")
                 -- Lock the ped so nothing else can interact with them while waiting for hospital
                 SetEntityInvincible(PlayerPedId(), true)
-                switchToFinishedOffAnim()
-                TriggerServerEvent('revive:playerFinishedOff')
-                startHospitalTimer()
+                if not IsEntityDead(PlayerPedId()) then
+                    -- Normal case: ped is alive, transition to passout anim immediately.
+                    switchToFinishedOffAnim()
+                    TriggerServerEvent('revive:playerFinishedOff')
+                    startHospitalTimer()
+                end
+                -- If the ped is dead (died during the writhe anim and Config.RagdollDelay
+                -- hasn't elapsed yet), the anim and server event are deferred to the
+                -- death-while-downed handler, which will resurrect the ped first and then
+                -- check alreadyFinishedOff to avoid double-triggering.
             end
         end
 
