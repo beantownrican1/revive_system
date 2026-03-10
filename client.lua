@@ -64,17 +64,30 @@ RegisterNetEvent('revive:syncDownedList', function(list)
 end)
 
 -- ============================================================
---  Emote blocking (while reviving someone)
+--  Command & control blocking
+--  Covers both the downed state and while actively reviving someone.
 -- ============================================================
 
 local emoteBlocked = false
 
+-- Commands blocked while downed (writhe + finished-off states)
+local downedBlockedCmds = {
+    e=true, c=true, emote=true, cancel=true,
+    heal=true, armor=true, spooner=true, vmenu=true,
+}
+
 AddEventHandler('chat:chatMessage', function(_, _, text)
-    if emoteBlocked then
-        local cmd = text:match("^/(%a+)")
-        if cmd and (cmd == "e" or cmd == "c" or cmd == "emote" or cmd == "cancel") then
-            CancelEvent()
-        end
+    local cmd = text:match("^/(%a+)")
+    if not cmd then return end
+    cmd = cmd:lower()
+    -- Block exploit/emote commands while downed
+    if isDowned and downedBlockedCmds[cmd] then
+        CancelEvent()
+        return
+    end
+    -- Block emotes while reviving someone
+    if emoteBlocked and (cmd == "e" or cmd == "c" or cmd == "emote" or cmd == "cancel") then
+        CancelEvent()
     end
 end)
 
@@ -115,9 +128,12 @@ CreateThread(function()
             DisableControlAction(0, 263, true)
             DisableControlAction(0, 264, true)
             DisableControlAction(0, 200, true)
+            DisableControlAction(0, 36,  true)
+            -- Emote wheel / emote context menu
+            DisableControlAction(0, 73,  true)
+            DisableControlAction(0, 194, true)
+            -- Interaction menu (M key) — blocks vMenu opening
             DisableControlAction(0, 244, true)
-            DisableControlAction(0, 36,  true) 
-            DisableControlAction(0, 244, true) 
         end
     end
 end)
@@ -259,9 +275,12 @@ function leaveDownedState(playGetUpAnim, toHospital)
     SetPlayerControl(PlayerId(), true, 0)
 
     if toHospital then
+        DoScreenFadeOut(800)
+        Wait(900)  -- slight extra buffer to ensure fully black before teleporting
         SetEntityCoords(ped, Config.HospitalSpawn.x, Config.HospitalSpawn.y, Config.HospitalSpawn.z, false, false, false, true)
         SetEntityHeading(ped, Config.HospitalSpawn.heading)
         notify("~b~You've been taken to the hospital.")
+        DoScreenFadeIn(1000)
     elseif playGetUpAnim then
         loadAnimDict(Config.GetUpAnim.dict)
         TaskPlayAnim(ped, Config.GetUpAnim.dict, Config.GetUpAnim.anim,
