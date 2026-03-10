@@ -19,9 +19,16 @@ local downedList = {}
 -- ============================================================
 
 local function loadAnimDict(dict)
+    local waited = 0
     while not HasAnimDictLoaded(dict) do
         RequestAnimDict(dict)
         Wait(10)
+        waited = waited + 10
+        if waited > 1500 then
+            -- Dict doesn't exist or failed to stream; bail out rather than
+            -- infinite-looping and freezing the calling coroutine.
+            break
+        end
     end
 end
 
@@ -238,6 +245,14 @@ function leaveDownedState(playGetUpAnim, toHospital)
     -- Ped is already alive (resurrected in enterDownedState).
     -- Just restore state, re-enable ragdoll, and handle location.
     local ped = PlayerPedId()
+
+    -- Pre-load the get-up dict NOW while the writhe is still playing so
+    -- TaskPlayAnim can fire the instant ClearPedTasks stops the writhe.
+    -- Without this, there is a visible stand-up gap while the dict streams in.
+    if playGetUpAnim then
+        loadAnimDict(Config.GetUpAnim.dict)
+    end
+
     ClearPedTasks(ped)
     SetEntityHealth(ped, 200)
     ClearPedBloodDamage(ped)

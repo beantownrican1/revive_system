@@ -1,19 +1,19 @@
 Config = {}
 
 -- Timer before a downed player can self-revive (seconds)
-Config.SelfReviveTimer = 40
+Config.SelfReviveTimer = 90
 
 -- Timer before a finished-off player can press E for hospital (seconds)
-Config.HospitalTimer = 20
+Config.HospitalTimer = 35
 
 -- How long the "get up" animation takes before control is restored (ms)
-Config.GetUpAnimDuration = 4000
+Config.GetUpAnimDuration = 5000
 
 -- How close a player needs to be to revive another (metres)
 Config.ReviveDistance = 2.0
 
 -- How long it takes to revive another player (ms)
-Config.ReviveDuration = 8000
+Config.ReviveDuration = 15000
 
 -- Finish-off key (default R)
 Config.FinishOffKey = 45  -- R key
@@ -36,11 +36,12 @@ Config.DownedAnim = {
     anim = "writhe_loop"
 }
 
--- Animation played when a player is finished off (unconscious/passed out)
--- Must be a live-ped animation — dead-ped anims are silently rejected by TaskPlayAnim.
+-- Animation played when a player is finished off (unconscious/passed out).
+-- Uses the sleeping scenario animation — plays as a motionless flat pose on live peds,
+-- visually distinct from the active writhe of the downed state.
 Config.FinishedOffAnim = {
-    dict = "combat@damage@writhe",
-    anim = "writhe_loop",
+    dict = "timetable@ron@sleep_4_bed@",
+    anim = "idle_a",
 }
 
 -- Revive animation performed by the reviver
@@ -49,10 +50,12 @@ Config.ReviveAnim = {
     anim = "cpr_pumpchest"
 }
 
--- Get-up animation (self revive)
+-- Get-up animation (self revive).
+-- Uses the same dict as DownedAnim so it is guaranteed to already be loaded —
+-- plays without looping for GetUpAnimDuration then GTA transitions to standing.
 Config.GetUpAnim = {
-    dict = "move_crawlback@crawl_to_stand",
-    anim = "crawl_to_stand"
+    dict = "combat@damage@writhe",
+    anim = "writhe_loop",
 }
 
 -- How long the ragdoll plays before downed state locks in (ms)
