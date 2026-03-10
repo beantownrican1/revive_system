@@ -286,11 +286,17 @@ function leaveDownedState(playGetUpAnim, toHospital)
     if toHospital then
         DoScreenFadeOut(800)
         Wait(900)  -- slight extra buffer to ensure fully black before teleporting
+        FreezeEntityPosition(ped, true)   -- hold ped in place while ground streams in
         SetEntityCoords(ped, Config.HospitalSpawn.x, Config.HospitalSpawn.y, Config.HospitalSpawn.z, false, false, false, true)
         SetEntityHeading(ped, Config.HospitalSpawn.heading)
-        SetEntityInvincible(ped, false)  -- now safe — ped is already at the hospital
         notify("~b~You've been taken to the hospital.")
         DoScreenFadeIn(1000)
+        -- Keep invincible and frozen until the fade is fully complete.
+        -- Clearing earlier risks the ped taking fall damage while the screen is
+        -- still dark, which triggers the death watcher and starts a second
+        -- downed state mid-teleport.
+        FreezeEntityPosition(ped, false)
+        SetEntityInvincible(ped, false)
     elseif playGetUpAnim then
         loadAnimDict(Config.GetUpAnim.dict)
         TaskPlayAnim(ped, Config.GetUpAnim.dict, Config.GetUpAnim.anim,
