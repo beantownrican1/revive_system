@@ -270,9 +270,12 @@ function leaveDownedState(playGetUpAnim, toHospital)
     SetPlayerControl(PlayerId(), true, 0)
 
     if toHospital then
+        DoScreenFadeOut(800)
+        Wait(900)  -- slight extra buffer to ensure fully black before teleporting
         SetEntityCoords(ped, Config.HospitalSpawn.x, Config.HospitalSpawn.y, Config.HospitalSpawn.z, false, false, false, true)
         SetEntityHeading(ped, Config.HospitalSpawn.heading)
         notify("~b~You've been taken to the hospital.")
+        DoScreenFadeIn(1000)
     elseif playGetUpAnim then
         loadAnimDict(Config.GetUpAnim.dict)
         TaskPlayAnim(ped, Config.GetUpAnim.dict, Config.GetUpAnim.anim,
@@ -322,6 +325,8 @@ CreateThread(function()
                 local w = 0
                 repeat Wait(50); w = w + 50; p = PlayerPedId()
                 until (not IsEntityDead(p) and GetEntityHealth(p) > 0) or w > 3000
+                -- Guard: if staff revived us during the resurrection wait, bail out
+                if not isDowned or not isFinishedOff then return end
                 SetEntityHealth(p, 200)
                 SetPedCanRagdoll(p, false)
                 SetPedRelationshipGroupHash(p, GetHashKey("CIVMALE"))
@@ -408,9 +413,9 @@ CreateThread(function()
             elseif isFinishedOff then
                 text = "~r~Finished off — awaiting hospital transfer..."
             elseif selfReviveReady then
-                text = "Press ~g~[E]~w~ to get up  |  Press ~r~[R]~w~ to finish yourself off"
+                text = "Press ~g~[E]~w~ to get up  |  Press ~r~[R]~w~ to give up"
             else
-                text = "Press ~r~[R]~w~ to finish yourself off ~r~(hospital respawn)"
+                text = "Press ~r~[R]~w~ to give up ~r~(leads to hospital)"
             end
             if text ~= lastHintText then
                 lastHintText = text
@@ -450,15 +455,12 @@ CreateThread(function()
             end
 
             if not isFinishedOff and IsDisabledControlJustPressed(0, Config.FinishOffKey) then
-                isFinishedOff   = true
+                -- Kill the ped — the death-while-downed watcher handles the
+                -- finished-off transition naturally after the ragdoll delay.
                 selfReviveReady = false
                 sendNUI('endProgress', {})
-                notify("~r~You've finished yourself off. Wait for hospital transfer.")
-                -- Lock the ped so nothing else can interact with them while waiting for hospital
-                SetEntityInvincible(PlayerPedId(), true)
-                switchToFinishedOffAnim()
-                TriggerServerEvent('revive:playerFinishedOff')
-                startHospitalTimer()
+                notify("~r~You've succumbed to your injuries...")
+                SetEntityHealth(PlayerPedId(), 0)
             end
         end
 
