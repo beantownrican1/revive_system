@@ -9,9 +9,6 @@ Config.HospitalTimer = 20
 -- How long the "get up" animation takes before control is restored (ms)
 Config.GetUpAnimDuration = 4000
 
--- Cooldown after getting up before weapons are re-enabled (seconds)
-Config.WeaponCooldown = 8
-
 -- How close a player needs to be to revive another (metres)
 Config.ReviveDistance = 2.0
 

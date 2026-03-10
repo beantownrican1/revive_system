@@ -67,6 +67,8 @@ RegisterNetEvent('revive:revivePlayer', function(targetServerId)
     local target = tonumber(targetServerId)
 
     if not downedPlayers[target] then return end
+    -- Finished-off players can only be revived by staff (/revive command)
+    if downedPlayers[target].isFinishedOff then return end
 
     TriggerClientEvent('revive:youAreRevived', target, false)  -- byStaff = false
     TriggerClientEvent('revive:reviveCancelled', -1, target)  -- stop any in-progress revive anims

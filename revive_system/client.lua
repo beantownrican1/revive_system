@@ -143,27 +143,15 @@ end)
 
 -- ============================================================
 --  Enter downed state
---  Called after ragdoll delay. Ped stays dead — we just take
---  over visually. No NetworkResurrectLocalPlayer here.
+--  Called after ragdoll delay. Resurrects the ped in-place so
+--  TaskPlayAnim and SetPedCanRagdoll work on a live entity.
 -- ============================================================
 
 local enterDownedState  -- forward declaration
 
 local function handleDeath()
-    if isDowned then
-        -- Killed again while already downed — finish them off
-        if not isFinishedOff then
-            isFinishedOff   = true
-            selfReviveReady = false
-            sendNUI('endProgress', {})
-            notify("~r~You've been finished off. Wait for hospital transfer.")
-            switchToFinishedOffAnim()
-            TriggerServerEvent('revive:playerFinishedOff')
-            startHospitalTimer()
-        end
-        return
-    end
-
+    -- Death watcher only calls this when not isDowned; the isDowned path
+    -- is handled separately in the death watcher (death-while-downed branch).
     enterDownedState()
 end
 
@@ -195,6 +183,9 @@ enterDownedState = function()
         waited = waited + 50
         ped = PlayerPedId()
     until (not IsEntityDead(ped) and GetEntityHealth(ped) > 0) or waited > 3000
+
+    -- If we were revived by staff during the resurrection wait, abort
+    if not isDowned then return end
 
     SetEntityHealth(ped, 200)
     ClearPedBloodDamage(ped)
@@ -235,6 +226,7 @@ end
 -- ============================================================
 
 function leaveDownedState(playGetUpAnim, toHospital)
+    if not isDowned then return end  -- guard against duplicate/spurious calls
     animLoopActive  = false
     isDowned        = false
     isFinishedOff   = false
@@ -567,12 +559,12 @@ function startReviving(target)
             return
         end
 
+        -- Validate against the original target directly, not the current nearbyDowned,
+        -- which may have changed or cleared during the revive animation.
         local stillValid = false
-        if nearbyDowned and nearbyDowned.serverId == target.serverId then
+        if target.ped and DoesEntityExist(target.ped) then
             local dist = #(GetEntityCoords(ped) - GetEntityCoords(target.ped))
-            if dist <= Config.ReviveDistance + 1.0 then
-                stillValid = true
-            end
+            stillValid = dist <= Config.ReviveDistance + 1.0
         end
 
         if stillValid then
@@ -611,6 +603,7 @@ RegisterNetEvent('revive:youAreFinishedOff', function()
         selfReviveReady = false
         sendNUI('endProgress', {})
         notify("~r~You've been finished off. Wait for hospital transfer.")
+        SetEntityInvincible(PlayerPedId(), true)
         switchToFinishedOffAnim()
         startHospitalTimer()
     end
