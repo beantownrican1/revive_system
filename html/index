@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: transparent;
+    overflow: hidden;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  #progress-container {
+    position: fixed;
+    bottom: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 380px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #progress-label {
+    color: #fff;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    text-shadow: 0 0 8px rgba(0,0,0,0.9);
+    text-align: center;
+  }
+
+  #progress-track {
+    width: 100%;
+    height: 10px;
+    background: rgba(0,0,0,0.55);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+
+  #progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 6px;
+    transition: width 0.3s linear;
+  }
+
+  /* Centered hint — avoids all corners and edges where blood texture sits */
+  #hint-box {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, 120px); /* just below center */
+    display: none;
+    background: rgba(0, 0, 0, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    padding: 10px 22px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  #hint-text {
+    color: #fff;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+    white-space: nowrap;
+  }
+
+  #hint-text .key {
+    font-weight: bold;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.12);
+    margin: 0 2px;
+  }
+
+  #hint-text .red  { color: #ff6060; }
+  #hint-text .green { color: #60ff90; }
+</style>
+</head>
+<body>
+<div id="progress-container">
+  <div id="progress-label">Loading...</div>
+  <div id="progress-track">
+    <div id="progress-fill"></div>
+  </div>
+</div>
+
+<div id="hint-box">
+  <div id="hint-text"></div>
+</div>
+
+<script>
+  const container = document.getElementById('progress-container');
+  const fill      = document.getElementById('progress-fill');
+  const label     = document.getElementById('progress-label');
+  const hintBox   = document.getElementById('hint-box');
+  const hintText  = document.getElementById('hint-text');
+
+  let animFrame  = null;
+  let startTime  = null;
+  let duration   = 0;
+  let hintTimer  = null;
+
+  function animate(ts) {
+    if (!startTime) startTime = ts;
+    const elapsed  = ts - startTime;
+    const progress = Math.min(elapsed / duration, 1.0);
+    fill.style.width = (progress * 100) + '%';
+    if (progress < 1.0) {
+      animFrame = requestAnimationFrame(animate);
+    }
+  }
+
+  // Parse simple ~r~ ~g~ ~w~ color codes into HTML
+  function parseColors(str) {
+    return str
+      .replace(/~r~/g, '<span class="red">')
+      .replace(/~g~/g, '<span class="green">')
+      .replace(/~w~/g, '</span>')
+      .replace(/\[([^\]]+)\]/g, '<span class="key">$1</span>');
+  }
+
+  window.addEventListener('message', function(event) {
+    const data = event.data;
+
+    if (data.action === 'startProgress') {
+      cancelAnimationFrame(animFrame);
+      startTime = null;
+      duration  = data.duration || 5000;
+
+      const c = data.color || { r: 255, g: 60, b: 60, a: 200 };
+      fill.style.background = `rgba(${c.r}, ${c.g}, ${c.b}, ${c.a / 255})`;
+      fill.style.boxShadow  = `0 0 8px rgba(${c.r}, ${c.g}, ${c.b}, 0.6)`;
+      fill.style.width = '0%';
+
+      label.textContent = data.label || '';
+      container.style.display = 'flex';
+      animFrame = requestAnimationFrame(animate);
+    }
+
+    if (data.action === 'endProgress') {
+      cancelAnimationFrame(animFrame);
+      container.style.display = 'none';
+      fill.style.width = '0%';
+    }
+
+    if (data.action === 'showHint') {
+      hintText.innerHTML = parseColors(data.text || '');
+      hintBox.style.display = 'block';
+      // Auto-hide after 2s then re-show next frame if still downed
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => { hintBox.style.display = 'none'; }, 2000);
+    }
+
+    if (data.action === 'hideHint') {
+      clearTimeout(hintTimer);
+      hintBox.style.display = 'none';
+    }
+  });
+</script>
+</body>
+</html>
