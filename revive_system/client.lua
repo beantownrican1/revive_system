@@ -121,6 +121,10 @@ CreateThread(function()
             DisableControlAction(0, 142, true)
             DisableControlAction(0, 263, true)
             DisableControlAction(0, 264, true)
+            DisableControlAction(0, 200, true)
+            DisableControlAction(0, 244, true)
+            DisableControlAction(0, 36,  true) 
+            DisableControlAction(0, 244, true) 
         end
     end
 end)
