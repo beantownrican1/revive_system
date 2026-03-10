@@ -24,10 +24,10 @@ Config.ReviveKey = 38     -- E key
 -- Hospital spawn location (where finished-off players are sent)
 -- Front door of Pillbox Hill Medical Center, top/street level
 Config.HospitalSpawn = {
-    x = 307.18,
-    y = -1432.76,
-    z = 32.49,
-    heading = 340.0
+    x = 298.48,
+    y = -584.28,
+    z = 43.26,
+    heading = 70.9
 }
 
 -- Downed animation dict/name (player lying on ground, writhing)
