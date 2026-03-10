@@ -1,7 +1,7 @@
 Config = {}
 
 -- Timer before a downed player can self-revive (seconds)
-Config.SelfReviveTimer = 90
+Config.SelfReviveTimer = 50
 
 -- Timer before a finished-off player can press E for hospital (seconds)
 Config.HospitalTimer = 35
@@ -59,7 +59,7 @@ Config.GetUpAnim = {
 }
 
 -- How long the ragdoll plays before downed state locks in (ms)
-Config.RagdollDelay = 4000
+Config.RagdollDelay = 5000
 
 -- NUI progress bar colors
 Config.BarColor = {r = 255, g = 60, b = 60, a = 200}    -- downed timer
