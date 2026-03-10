@@ -19,9 +19,12 @@ local downedList = {}
 -- ============================================================
 
 local function loadAnimDict(dict)
+    local waited = 0
     while not HasAnimDictLoaded(dict) do
         RequestAnimDict(dict)
         Wait(10)
+        waited = waited + 10
+        if waited > 1500 then break end  -- bail if dict fails to stream
     end
 end
 
@@ -262,7 +265,13 @@ function leaveDownedState(playGetUpAnim, toHospital)
     SetEntityHealth(ped, 200)
     ClearPedBloodDamage(ped)
     SetPedCanRagdoll(ped, true)
-    SetEntityInvincible(ped, false)
+
+    -- For the hospital path, keep the ped invincible through the fade so a
+    -- kill during the black screen can't re-trigger the downed state.
+    -- For all other paths it's safe to clear immediately.
+    if not toHospital then
+        SetEntityInvincible(ped, false)
+    end
 
     -- Restore original relationship group (re-enables NPC targeting)
     if originalRelGroup then
@@ -279,6 +288,7 @@ function leaveDownedState(playGetUpAnim, toHospital)
         Wait(900)  -- slight extra buffer to ensure fully black before teleporting
         SetEntityCoords(ped, Config.HospitalSpawn.x, Config.HospitalSpawn.y, Config.HospitalSpawn.z, false, false, false, true)
         SetEntityHeading(ped, Config.HospitalSpawn.heading)
+        SetEntityInvincible(ped, false)  -- now safe — ped is already at the hospital
         notify("~b~You've been taken to the hospital.")
         DoScreenFadeIn(1000)
     elseif playGetUpAnim then

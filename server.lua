@@ -14,6 +14,7 @@ end
 
 RegisterNetEvent('revive:playerDowned', function()
     local src = source
+    if downedPlayers[src] then return end  -- ignore duplicate calls
     downedPlayers[src] = { isFinishedOff = false }
     Player(src).state:set('isDowned', true, true)
     broadcastDownedList()
@@ -39,7 +40,7 @@ end)
 -- Downed player finishes themselves off
 RegisterNetEvent('revive:playerFinishedOff', function()
     local src = source
-    if downedPlayers[src] then
+    if downedPlayers[src] and not downedPlayers[src].isFinishedOff then
         downedPlayers[src].isFinishedOff = true
         broadcastDownedList()
         print(("[REVIVE] Player %s finished themselves off."):format(src))
@@ -69,6 +70,14 @@ RegisterNetEvent('revive:revivePlayer', function(targetServerId)
     if not downedPlayers[target] then return end
     -- Finished-off players can only be revived by staff (/revive command)
     if downedPlayers[target].isFinishedOff then return end
+
+    -- Server-side proximity check — prevents any client sending this event
+    -- for a target they are not actually standing next to.
+    local srcPed    = GetPlayerPed(src)
+    local targetPed = GetPlayerPed(target)
+    if not srcPed or srcPed == 0 or not targetPed or targetPed == 0 then return end
+    local dist = #(GetEntityCoords(srcPed) - GetEntityCoords(targetPed))
+    if dist > 5.0 then return end  -- generous cap; client checks 2m + 1m buffer
 
     TriggerClientEvent('revive:youAreRevived', target, false)  -- byStaff = false
     TriggerClientEvent('revive:reviveCancelled', -1, target)  -- stop any in-progress revive anims
