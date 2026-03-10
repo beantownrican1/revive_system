@@ -142,7 +142,10 @@ CreateThread(function()
             local animName = isFinishedOff and Config.FinishedOffAnim.anim or Config.DownedAnim.anim
             if not IsEntityPlayingAnim(ped, animDict, animName, 3) then
                 loadAnimDict(animDict)
-                TaskPlayAnim(ped, animDict, animName, 8.0, -1.0, -1, 1, 0, false, false, false)
+                -- Re-check: leaveDownedState may have run during the async dict load
+                if isDowned and animLoopActive then
+                    TaskPlayAnim(ped, animDict, animName, 8.0, -1.0, -1, 1, 0, false, false, false)
+                end
             end
         end
     end
@@ -277,7 +280,6 @@ function leaveDownedState(playGetUpAnim, toHospital)
         notify("~b~You've been taken to the hospital.")
         DoScreenFadeIn(1000)
     elseif playGetUpAnim then
-        loadAnimDict(Config.GetUpAnim.dict)
         TaskPlayAnim(ped, Config.GetUpAnim.dict, Config.GetUpAnim.anim,
             4.0, -1.0, Config.GetUpAnimDuration, 0, 0, false, false, false)
         Wait(Config.GetUpAnimDuration)
@@ -315,6 +317,9 @@ CreateThread(function()
                 selfReviveReady = false
                 sendNUI('endProgress', {})
                 notify("~r~You're critically injured. Wait for hospital transfer.")
+                -- Fade before resurrection so the stand-up snap is never visible
+                DoScreenFadeOut(500)
+                Wait(600)
                 -- Re-resurrect in-place for the passout animation
                 local p       = PlayerPedId()
                 local coords  = GetEntityCoords(p)
@@ -326,15 +331,20 @@ CreateThread(function()
                 repeat Wait(50); w = w + 50; p = PlayerPedId()
                 until (not IsEntityDead(p) and GetEntityHealth(p) > 0) or w > 3000
                 -- Guard: if staff revived us during the resurrection wait, bail out
-                if not isDowned or not isFinishedOff then return end
+                if not isDowned or not isFinishedOff then
+                    DoScreenFadeIn(500)
+                    return
+                end
                 SetEntityHealth(p, 200)
                 SetPedCanRagdoll(p, false)
                 SetPedRelationshipGroupHash(p, GetHashKey("CIVMALE"))
                 -- Keep invincible — they are finished off, nothing should alter their state.
                 -- leaveDownedState clears this when they go to hospital.
-                ClearPedTasks(p)  -- evict any stand-up animation from the resurrection
-                Wait(0)           -- yield so the clear takes effect before the new anim
+                -- Do NOT call ClearPedTasks here — the watcher's resurrection-detection branch
+                -- already applies the passout anim; ClearPedTasks would cancel it for one frame
+                -- causing a visible stand-up flash ("revived again" visual).
                 switchToFinishedOffAnim()
+                DoScreenFadeIn(500)
                 TriggerServerEvent('revive:playerFinishedOff')
                 startHospitalTimer()
             end)
@@ -349,8 +359,11 @@ CreateThread(function()
             local animDict = isFinishedOff and Config.FinishedOffAnim.dict or Config.DownedAnim.dict
             local animName = isFinishedOff and Config.FinishedOffAnim.anim or Config.DownedAnim.anim
             loadAnimDict(animDict)
-            TaskPlayAnim(p, animDict, animName,
-                8.0, -1.0, -1, 1, 0, false, false, false)
+            -- Re-check: staff may have revived us during the async dict load
+            if isDowned then
+                TaskPlayAnim(p, animDict, animName,
+                    8.0, -1.0, -1, 1, 0, false, false, false)
+            end
         end
     end
 end)
